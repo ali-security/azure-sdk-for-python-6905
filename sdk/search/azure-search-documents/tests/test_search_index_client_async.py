@@ -151,6 +151,7 @@ class TestKnowledgeSourceFileOperationsAsync:
                 "files-source",
                 b"content",
                 content_type="application/octet-stream",
+                content_disposition='attachment; filename="content.bin"',
             )
 
         mock_upload.assert_awaited_once()
@@ -158,6 +159,31 @@ class TestKnowledgeSourceFileOperationsAsync:
         assert kwargs["name"] == "files-source"
         assert kwargs["file"] == b"content"
         assert kwargs["content_type"] == "application/octet-stream"
+        assert kwargs["content_disposition"] == 'attachment; filename="content.bin"'
+
+    async def test_upload_knowledge_source_file_builds_content_disposition_from_filename(self):
+        require_capability("azure.search.documents.indexes.aio.SearchIndexClient.upload_knowledge_source_file")
+
+        with mock.patch(
+            "azure.search.documents.indexes.aio._operations._operations."
+            "_SearchIndexClientOperationsMixin._upload_knowledge_source_file",
+            new_callable=mock.AsyncMock,
+        ) as mock_upload:
+            await _client().upload_knowledge_source_file(
+                "files-source",
+                b"content",
+                filename="installation-guide.pdf",
+            )
+
+        mock_upload.assert_awaited_once()
+        kwargs = mock_upload.call_args.kwargs
+        assert kwargs["content_disposition"] == 'attachment; filename="installation-guide.pdf"'
+
+    async def test_upload_knowledge_source_file_requires_filename_or_content_disposition(self):
+        require_capability("azure.search.documents.indexes.aio.SearchIndexClient.upload_knowledge_source_file")
+
+        with pytest.raises(ValueError, match="filename"):
+            await _client().upload_knowledge_source_file("files-source", b"content")
 
     async def test_delete_knowledge_source_file_forwards_file_id(self):
         require_capability("azure.search.documents.indexes.aio.SearchIndexClient.delete_knowledge_source_file")

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from azure.core.credentials import AzureKeyCredential
 from azure.core.paging import ItemPaged
 
@@ -130,13 +132,42 @@ class TestKnowledgeSourceFileOperations:
     def test_upload_knowledge_source_file_forwards_content(self, mock_upload):
         require_capability("azure.search.documents.indexes.SearchIndexClient.upload_knowledge_source_file")
 
-        _client().upload_knowledge_source_file("files-source", b"content", content_type="application/octet-stream")
+        _client().upload_knowledge_source_file(
+            "files-source",
+            b"content",
+            content_type="application/octet-stream",
+            content_disposition='attachment; filename="content.bin"',
+        )
 
         mock_upload.assert_called_once()
         kwargs = mock_upload.call_args.kwargs
         assert kwargs["name"] == "files-source"
         assert kwargs["file"] == b"content"
         assert kwargs["content_type"] == "application/octet-stream"
+        assert kwargs["content_disposition"] == 'attachment; filename="content.bin"'
+
+    @mock.patch(
+        "azure.search.documents.indexes._operations._operations."
+        "_SearchIndexClientOperationsMixin._upload_knowledge_source_file"
+    )
+    def test_upload_knowledge_source_file_builds_content_disposition_from_filename(self, mock_upload):
+        require_capability("azure.search.documents.indexes.SearchIndexClient.upload_knowledge_source_file")
+
+        _client().upload_knowledge_source_file(
+            "files-source",
+            b"content",
+            filename="installation-guide.pdf",
+        )
+
+        mock_upload.assert_called_once()
+        kwargs = mock_upload.call_args.kwargs
+        assert kwargs["content_disposition"] == 'attachment; filename="installation-guide.pdf"'
+
+    def test_upload_knowledge_source_file_requires_filename_or_content_disposition(self):
+        require_capability("azure.search.documents.indexes.SearchIndexClient.upload_knowledge_source_file")
+
+        with pytest.raises(ValueError, match="filename"):
+            _client().upload_knowledge_source_file("files-source", b"content")
 
     @mock.patch(
         "azure.search.documents.indexes._operations._operations."

@@ -16,6 +16,33 @@
   - `azure.search.documents.indexes.SearchIndexClient.list_knowledge_source_files`
   - `azure.search.documents.indexes.SearchIndexClient.upload_knowledge_source_file`
 
+- Below models are added for per-source retrieval activity tracking
+  - `azure.search.documents.knowledgebases.models.ImageServingStatistics`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseAzureBlobActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseAzureBlobActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFabricDataAgentActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFabricDataAgentActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFabricOntologyActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFabricOntologyActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFileActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseFileActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedOneLakeActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedOneLakeActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSharePointActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSharePointActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSqlActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSqlActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseMcpServerActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseMcpServerActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseRemoteSharePointActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseRemoteSharePointActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseSearchIndexActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseSearchIndexActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseWebActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseWebActivityRecord`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseWorkIQActivityArguments`
+  - `azure.search.documents.knowledgebases.models.KnowledgeBaseWorkIQActivityRecord`
+
 - Below models are added for File, indexed SQL, and MCP server knowledge source support
   - `azure.search.documents.indexes.models.FileKnowledgeSource`
   - `azure.search.documents.indexes.models.FileKnowledgeSourceParameters`

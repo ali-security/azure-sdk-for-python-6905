@@ -2876,11 +2876,20 @@ class _SearchIndexClientOperationsMixin(  # pylint: disable=too-many-public-meth
     @distributed_trace_async
     @api_version_validation(
         method_added_on="2026-05-01-preview",
-        params_added_on={"2026-05-01-preview": ["api_version", "content_type", "client_request_id", "name", "accept"]},
+        params_added_on={
+            "2026-05-01-preview": [
+                "api_version",
+                "content_type",
+                "content_disposition",
+                "client_request_id",
+                "name",
+                "accept",
+            ]
+        },
         api_versions_list=["2026-05-01-preview"],
     )
     async def _upload_knowledge_source_file(
-        self, name: str, file: bytes, **kwargs: Any
+        self, name: str, file: bytes, *, content_disposition: str, **kwargs: Any
     ) -> _models2.KnowledgeSourceFile:
         """Uploads a file to a File knowledge source for processing and indexing.
 
@@ -2888,6 +2897,11 @@ class _SearchIndexClientOperationsMixin(  # pylint: disable=too-many-public-meth
         :type name: str
         :param file: The file content to upload. Required.
         :type file: bytes
+        :keyword content_disposition: The Content-Disposition header specifying the filename of the
+         uploaded file.
+         Must follow the format: ``attachment; filename="<filename>"``.
+         For example: ``attachment; filename="installation-guide.pdf"``. Required.
+        :paramtype content_disposition: str
         :return: KnowledgeSourceFile. The KnowledgeSourceFile is compatible with MutableMapping
         :rtype: ~azure.search.documents.indexes.models.KnowledgeSourceFile
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2910,6 +2924,7 @@ class _SearchIndexClientOperationsMixin(  # pylint: disable=too-many-public-meth
 
         _request = build_search_index_upload_knowledge_source_file_request(
             name=name,
+            content_disposition=content_disposition,
             content_type=content_type,
             api_version=self._config.api_version,
             content=_content,

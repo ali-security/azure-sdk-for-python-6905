@@ -544,6 +544,58 @@ class FreshnessPolicy(_Model):
         super().__init__(*args, **kwargs)
 
 
+class ImageServingStatistics(_Model):
+    """Statistics about image serving during a retrieval activity.
+
+    :ivar images_retrieved: The number of images retrieved from the asset store.
+    :vartype images_retrieved: int
+    :ivar images_sent_to_model: The number of images sent to the downstream model.
+    :vartype images_sent_to_model: int
+    :ivar total_image_size_bytes: The total size in bytes of images sent to the model.
+    :vartype total_image_size_bytes: int
+    :ivar verbalization_used: Indicates whether image verbalization was used instead of direct
+     image serving.
+    :vartype verbalization_used: bool
+    """
+
+    images_retrieved: Optional[int] = rest_field(
+        name="imagesRetrieved", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The number of images retrieved from the asset store."""
+    images_sent_to_model: Optional[int] = rest_field(
+        name="imagesSentToModel", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The number of images sent to the downstream model."""
+    total_image_size_bytes: Optional[int] = rest_field(
+        name="totalImageSizeBytes", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The total size in bytes of images sent to the model."""
+    verbalization_used: Optional[bool] = rest_field(
+        name="verbalizationUsed", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Indicates whether image verbalization was used instead of direct image serving."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        images_retrieved: Optional[int] = None,
+        images_sent_to_model: Optional[int] = None,
+        total_image_size_bytes: Optional[int] = None,
+        verbalization_used: Optional[bool] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
 class IndexedOneLakeKnowledgeSourceParams(KnowledgeSourceParams, discriminator="indexedOneLake"):
     """Specifies runtime parameters for a indexed OneLake knowledge source.
 
@@ -733,8 +785,15 @@ class KnowledgeBaseActivityRecord(_Model):
     operations.
 
     You probably want to use the sub-classes and not this class directly. Known sub-classes are:
-    KnowledgeBaseAgenticReasoningActivityRecord, KnowledgeBaseModelAnswerSynthesisActivityRecord,
-    KnowledgeBaseModelQueryPlanningActivityRecord, KnowledgeBaseModelWebSummarizationActivityRecord
+    KnowledgeBaseAgenticReasoningActivityRecord, KnowledgeBaseAzureBlobActivityRecord,
+    KnowledgeBaseFabricDataAgentActivityRecord, KnowledgeBaseFabricOntologyActivityRecord,
+    KnowledgeBaseFileActivityRecord, KnowledgeBaseIndexedOneLakeActivityRecord,
+    KnowledgeBaseIndexedSharePointActivityRecord, KnowledgeBaseIndexedSqlActivityRecord,
+    KnowledgeBaseMcpServerActivityRecord, KnowledgeBaseModelAnswerSynthesisActivityRecord,
+    KnowledgeBaseModelQueryPlanningActivityRecord,
+    KnowledgeBaseModelWebSummarizationActivityRecord, KnowledgeBaseRemoteSharePointActivityRecord,
+    KnowledgeBaseSearchIndexActivityRecord, KnowledgeBaseWebActivityRecord,
+    KnowledgeBaseWorkIQActivityRecord
 
     :ivar id: The ID of the activity record. Required.
     :vartype id: int
@@ -855,6 +914,113 @@ class KnowledgeBaseAgenticReasoningActivityRecord(
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.type = KnowledgeBaseActivityRecordType.AGENTIC_REASONING  # type: ignore
+
+
+class KnowledgeBaseAzureBlobActivityArguments(_Model):
+    """Represents the arguments the azure blob retrieval activity was run with.
+
+    :ivar search: The search string used to query blob contents.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query blob contents."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseAzureBlobActivityRecord(KnowledgeBaseActivityRecord, discriminator="azureBlob"):
+    """Represents a azure blob retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Azure Blob retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.AZURE_BLOB
+    :ivar azure_blob_arguments: The azure blob arguments for the retrieval activity.
+    :vartype azure_blob_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseAzureBlobActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.AZURE_BLOB] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Azure Blob retrieval activity."""
+    azure_blob_arguments: Optional["_models.KnowledgeBaseAzureBlobActivityArguments"] = rest_field(
+        name="azureBlobArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The azure blob arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        azure_blob_arguments: Optional["_models.KnowledgeBaseAzureBlobActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.AZURE_BLOB  # type: ignore
 
 
 class KnowledgeBaseReference(_Model):
@@ -1020,6 +1186,115 @@ class KnowledgeBaseErrorDetail(_Model):
     """The error additional info."""
 
 
+class KnowledgeBaseFabricDataAgentActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the Fabric Data Agent retrieval activity was run with.
+
+    :ivar search: The search string used to query the Fabric Data Agent knowledge source.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the Fabric Data Agent knowledge source."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseFabricDataAgentActivityRecord(
+    KnowledgeBaseActivityRecord, discriminator="fabricDataAgent"
+):  # pylint: disable=name-too-long
+    """Represents a Fabric Data Agent retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Fabric Data Agent retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.FABRIC_DATA_AGENT
+    :ivar fabric_data_agent_arguments: The Fabric Data Agent arguments for the retrieval activity.
+    :vartype fabric_data_agent_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseFabricDataAgentActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.FABRIC_DATA_AGENT] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Fabric Data Agent retrieval activity."""
+    fabric_data_agent_arguments: Optional["_models.KnowledgeBaseFabricDataAgentActivityArguments"] = rest_field(
+        name="fabricDataAgentArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The Fabric Data Agent arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        fabric_data_agent_arguments: Optional["_models.KnowledgeBaseFabricDataAgentActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.FABRIC_DATA_AGENT  # type: ignore
+
+
 class KnowledgeBaseFabricDataAgentReference(KnowledgeBaseReference, discriminator="fabricDataAgent"):
     """Represents a Fabric Data Agent document reference.
 
@@ -1074,6 +1349,115 @@ class KnowledgeBaseFabricDataAgentReference(KnowledgeBaseReference, discriminato
         self.type = KnowledgeBaseReferenceType.FABRIC_DATA_AGENT  # type: ignore
 
 
+class KnowledgeBaseFabricOntologyActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the Fabric Ontology retrieval activity was run with.
+
+    :ivar search: The search string used to query the Fabric Ontology knowledge source.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the Fabric Ontology knowledge source."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseFabricOntologyActivityRecord(
+    KnowledgeBaseActivityRecord, discriminator="fabricOntology"
+):  # pylint: disable=name-too-long
+    """Represents a Fabric Ontology retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Fabric Ontology retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.FABRIC_ONTOLOGY
+    :ivar fabric_ontology_arguments: The Fabric Ontology arguments for the retrieval activity.
+    :vartype fabric_ontology_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseFabricOntologyActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.FABRIC_ONTOLOGY] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Fabric Ontology retrieval activity."""
+    fabric_ontology_arguments: Optional["_models.KnowledgeBaseFabricOntologyActivityArguments"] = rest_field(
+        name="fabricOntologyArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The Fabric Ontology arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        fabric_ontology_arguments: Optional["_models.KnowledgeBaseFabricOntologyActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.FABRIC_ONTOLOGY  # type: ignore
+
+
 class KnowledgeBaseFabricOntologyReference(KnowledgeBaseReference, discriminator="fabricOntology"):
     """Represents a Fabric Ontology document reference.
 
@@ -1126,6 +1510,113 @@ class KnowledgeBaseFabricOntologyReference(KnowledgeBaseReference, discriminator
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.type = KnowledgeBaseReferenceType.FABRIC_ONTOLOGY  # type: ignore
+
+
+class KnowledgeBaseFileActivityArguments(_Model):
+    """Represents the arguments the File retrieval activity was run with.
+
+    :ivar search: The search string used to query file contents.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query file contents."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseFileActivityRecord(KnowledgeBaseActivityRecord, discriminator="file"):
+    """Represents a File retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. File retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.FILE
+    :ivar file_arguments: The File arguments for the retrieval activity.
+    :vartype file_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseFileActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.FILE] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. File retrieval activity."""
+    file_arguments: Optional["_models.KnowledgeBaseFileActivityArguments"] = rest_field(
+        name="fileArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The File arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        file_arguments: Optional["_models.KnowledgeBaseFileActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.FILE  # type: ignore
 
 
 class KnowledgeBaseFileReference(KnowledgeBaseReference, discriminator="file"):
@@ -1201,6 +1692,115 @@ class KnowledgeBaseImageContent(_Model):
         super().__init__(*args, **kwargs)
 
 
+class KnowledgeBaseIndexedOneLakeActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the indexed OneLake retrieval activity was run with.
+
+    :ivar search: The search string used to query indexed OneLake contents.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query indexed OneLake contents."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseIndexedOneLakeActivityRecord(
+    KnowledgeBaseActivityRecord, discriminator="indexedOneLake"
+):  # pylint: disable=name-too-long
+    """Represents a indexed OneLake retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Indexed OneLake retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.INDEXED_ONELAKE
+    :ivar indexed_one_lake_arguments: The indexed OneLake arguments for the retrieval activity.
+    :vartype indexed_one_lake_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedOneLakeActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.INDEXED_ONELAKE] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Indexed OneLake retrieval activity."""
+    indexed_one_lake_arguments: Optional["_models.KnowledgeBaseIndexedOneLakeActivityArguments"] = rest_field(
+        name="indexedOneLakeArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The indexed OneLake arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        indexed_one_lake_arguments: Optional["_models.KnowledgeBaseIndexedOneLakeActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.INDEXED_ONELAKE  # type: ignore
+
+
 class KnowledgeBaseIndexedOneLakeReference(KnowledgeBaseReference, discriminator="indexedOneLake"):
     """Represents an indexed OneLake document reference.
 
@@ -1252,6 +1852,116 @@ class KnowledgeBaseIndexedOneLakeReference(KnowledgeBaseReference, discriminator
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.type = KnowledgeBaseReferenceType.INDEXED_ONELAKE  # type: ignore
+
+
+class KnowledgeBaseIndexedSharePointActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the indexed SharePoint retrieval activity was run with.
+
+    :ivar search: The search string used to query indexed SharePoint contents.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query indexed SharePoint contents."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseIndexedSharePointActivityRecord(
+    KnowledgeBaseActivityRecord, discriminator="indexedSharePoint"
+):  # pylint: disable=name-too-long
+    """Represents a indexed SharePoint retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Indexed SharePoint retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.INDEXED_SHARE_POINT
+    :ivar indexed_share_point_arguments: The indexed SharePoint arguments for the retrieval
+     activity.
+    :vartype indexed_share_point_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSharePointActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.INDEXED_SHARE_POINT] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Indexed SharePoint retrieval activity."""
+    indexed_share_point_arguments: Optional["_models.KnowledgeBaseIndexedSharePointActivityArguments"] = rest_field(
+        name="indexedSharePointArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The indexed SharePoint arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        indexed_share_point_arguments: Optional["_models.KnowledgeBaseIndexedSharePointActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.INDEXED_SHARE_POINT  # type: ignore
 
 
 class KnowledgeBaseIndexedSharePointReference(KnowledgeBaseReference, discriminator="indexedSharePoint"):
@@ -1307,6 +2017,113 @@ class KnowledgeBaseIndexedSharePointReference(KnowledgeBaseReference, discrimina
         self.type = KnowledgeBaseReferenceType.INDEXED_SHARE_POINT  # type: ignore
 
 
+class KnowledgeBaseIndexedSqlActivityArguments(_Model):
+    """Represents the arguments the indexed SQL retrieval activity was run with.
+
+    :ivar search: The search string used to query indexed SQL contents.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query indexed SQL contents."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseIndexedSqlActivityRecord(KnowledgeBaseActivityRecord, discriminator="indexedSql"):
+    """Represents an indexed SQL retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Indexed SQL retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.INDEXED_SQL
+    :ivar indexed_sql_arguments: The indexed SQL arguments for the retrieval activity.
+    :vartype indexed_sql_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseIndexedSqlActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.INDEXED_SQL] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Indexed SQL retrieval activity."""
+    indexed_sql_arguments: Optional["_models.KnowledgeBaseIndexedSqlActivityArguments"] = rest_field(
+        name="indexedSqlArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The indexed SQL arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        indexed_sql_arguments: Optional["_models.KnowledgeBaseIndexedSqlActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.INDEXED_SQL  # type: ignore
+
+
 class KnowledgeBaseIndexedSqlReference(KnowledgeBaseReference, discriminator="indexedSql"):
     """Represents an Azure SQL document reference.
 
@@ -1350,6 +2167,120 @@ class KnowledgeBaseIndexedSqlReference(KnowledgeBaseReference, discriminator="in
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.type = KnowledgeBaseReferenceType.INDEXED_SQL  # type: ignore
+
+
+class KnowledgeBaseMcpServerActivityArguments(_Model):
+    """Represents the arguments the MCP server retrieval activity was run with.
+
+    :ivar tool_name: The name of the MCP server tool used for the retrieval activity.
+    :vartype tool_name: str
+    :ivar tool_arguments: The arguments passed to the MCP server tool.
+    :vartype tool_arguments: dict[str, any]
+    """
+
+    tool_name: Optional[str] = rest_field(name="toolName", visibility=["read", "create", "update", "delete", "query"])
+    """The name of the MCP server tool used for the retrieval activity."""
+    tool_arguments: Optional[dict[str, Any]] = rest_field(
+        name="toolArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The arguments passed to the MCP server tool."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        tool_name: Optional[str] = None,
+        tool_arguments: Optional[dict[str, Any]] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseMcpServerActivityRecord(KnowledgeBaseActivityRecord, discriminator="mcpServer"):
+    """Represents an MCP server retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. MCP server retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.MCP_SERVER
+    :ivar mcp_server_arguments: The MCP server arguments for the retrieval activity.
+    :vartype mcp_server_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseMcpServerActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.MCP_SERVER] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. MCP server retrieval activity."""
+    mcp_server_arguments: Optional["_models.KnowledgeBaseMcpServerActivityArguments"] = rest_field(
+        name="mcpServerArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The MCP server arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        mcp_server_arguments: Optional["_models.KnowledgeBaseMcpServerActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.MCP_SERVER  # type: ignore
 
 
 class KnowledgeBaseMcpServerReference(KnowledgeBaseReference, discriminator="mcpServer"):
@@ -1729,6 +2660,122 @@ class KnowledgeBaseModelWebSummarizationActivityRecord(
         self.type = KnowledgeBaseActivityRecordType.MODEL_WEB_SUMMARIZATION  # type: ignore
 
 
+class KnowledgeBaseRemoteSharePointActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the remote SharePoint retrieval activity was run with.
+
+    :ivar search: The search string used to query the remote SharePoint knowledge source.
+    :vartype search: str
+    :ivar filter_expression_add_on: The filter expression add-on for the retrieval activity.
+    :vartype filter_expression_add_on: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the remote SharePoint knowledge source."""
+    filter_expression_add_on: Optional[str] = rest_field(
+        name="filterExpressionAddOn", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The filter expression add-on for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+        filter_expression_add_on: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseRemoteSharePointActivityRecord(
+    KnowledgeBaseActivityRecord, discriminator="remoteSharePoint"
+):  # pylint: disable=name-too-long
+    """Represents a remote SharePoint retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Remote SharePoint retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.REMOTE_SHARE_POINT
+    :ivar remote_share_point_arguments: The remote SharePoint arguments for the retrieval activity.
+    :vartype remote_share_point_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseRemoteSharePointActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.REMOTE_SHARE_POINT] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Remote SharePoint retrieval activity."""
+    remote_share_point_arguments: Optional["_models.KnowledgeBaseRemoteSharePointActivityArguments"] = rest_field(
+        name="remoteSharePointArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The remote SharePoint arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        remote_share_point_arguments: Optional["_models.KnowledgeBaseRemoteSharePointActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.REMOTE_SHARE_POINT  # type: ignore
+
+
 class KnowledgeBaseRemoteSharePointReference(KnowledgeBaseReference, discriminator="remoteSharePoint"):
     """Represents a remote SharePoint document reference.
 
@@ -1934,6 +2981,140 @@ class KnowledgeBaseRetrievalResponse(_Model):
         super().__init__(*args, **kwargs)
 
 
+class KnowledgeBaseSearchIndexActivityArguments(_Model):  # pylint: disable=name-too-long
+    """Represents the arguments the search index retrieval activity was run with.
+
+    :ivar search: The search string used to query the search index.
+    :vartype search: str
+    :ivar filter: The filter string.
+    :vartype filter: str
+    :ivar source_data_fields: What fields were selected for search.
+    :vartype source_data_fields:
+     list[~azure.search.documents.indexes.models.SearchIndexFieldReference]
+    :ivar search_fields: What fields were searched against.
+    :vartype search_fields: list[~azure.search.documents.indexes.models.SearchIndexFieldReference]
+    :ivar semantic_configuration_name: What semantic configuration was used from the search index.
+    :vartype semantic_configuration_name: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the search index."""
+    filter: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The filter string."""
+    source_data_fields: Optional[list["_indexes_models3.SearchIndexFieldReference"]] = rest_field(
+        name="sourceDataFields", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """What fields were selected for search."""
+    search_fields: Optional[list["_indexes_models3.SearchIndexFieldReference"]] = rest_field(
+        name="searchFields", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """What fields were searched against."""
+    semantic_configuration_name: Optional[str] = rest_field(
+        name="semanticConfigurationName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """What semantic configuration was used from the search index."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+        filter: Optional[str] = None,  # pylint: disable=redefined-builtin
+        source_data_fields: Optional[list["_indexes_models3.SearchIndexFieldReference"]] = None,
+        search_fields: Optional[list["_indexes_models3.SearchIndexFieldReference"]] = None,
+        semantic_configuration_name: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseSearchIndexActivityRecord(KnowledgeBaseActivityRecord, discriminator="searchIndex"):
+    """Represents a search index retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Search index retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.SEARCH_INDEX
+    :ivar search_index_arguments: The search index arguments for the retrieval activity.
+    :vartype search_index_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseSearchIndexActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.SEARCH_INDEX] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Search index retrieval activity."""
+    search_index_arguments: Optional["_models.KnowledgeBaseSearchIndexActivityArguments"] = rest_field(
+        name="searchIndexArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The search index arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        search_index_arguments: Optional["_models.KnowledgeBaseSearchIndexActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.SEARCH_INDEX  # type: ignore
+
+
 class KnowledgeBaseSearchIndexReference(KnowledgeBaseReference, discriminator="searchIndex"):
     """Represents an Azure Search document reference.
 
@@ -1987,6 +3168,133 @@ class KnowledgeBaseSearchIndexReference(KnowledgeBaseReference, discriminator="s
         self.type = KnowledgeBaseReferenceType.SEARCH_INDEX  # type: ignore
 
 
+class KnowledgeBaseWebActivityArguments(_Model):
+    """Represents the arguments the web retrieval activity was run with.
+
+    :ivar search: The search string used to query the web.
+    :vartype search: str
+    :ivar language: The language for the retrieval activity.
+    :vartype language: str
+    :ivar market: The market for the retrieval activity.
+    :vartype market: str
+    :ivar count: The number of web results returned.
+    :vartype count: int
+    :ivar freshness: The freshness for the retrieval activity.
+    :vartype freshness: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the web."""
+    language: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The language for the retrieval activity."""
+    market: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The market for the retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The number of web results returned."""
+    freshness: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The freshness for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+        language: Optional[str] = None,
+        market: Optional[str] = None,
+        count: Optional[int] = None,
+        freshness: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseWebActivityRecord(KnowledgeBaseActivityRecord, discriminator="web"):
+    """Represents a web retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. Web retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.WEB
+    :ivar web_arguments: The web arguments for the retrieval activity.
+    :vartype web_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseWebActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.WEB] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. Web retrieval activity."""
+    web_arguments: Optional["_models.KnowledgeBaseWebActivityArguments"] = rest_field(
+        name="webArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The web arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        web_arguments: Optional["_models.KnowledgeBaseWebActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.WEB  # type: ignore
+
+
 class KnowledgeBaseWebReference(KnowledgeBaseReference, discriminator="web"):
     """Represents a web document reference.
 
@@ -2035,6 +3343,113 @@ class KnowledgeBaseWebReference(KnowledgeBaseReference, discriminator="web"):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.type = KnowledgeBaseReferenceType.WEB  # type: ignore
+
+
+class KnowledgeBaseWorkIQActivityArguments(_Model):
+    """Represents the arguments the WorkIQ retrieval activity was run with.
+
+    :ivar search: The search string used to query the WorkIQ knowledge source.
+    :vartype search: str
+    """
+
+    search: Optional[str] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The search string used to query the WorkIQ knowledge source."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        search: Optional[str] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class KnowledgeBaseWorkIQActivityRecord(KnowledgeBaseActivityRecord, discriminator="workIQ"):
+    """Represents a WorkIQ retrieval activity record.
+
+    :ivar id: The ID of the activity record. Required.
+    :vartype id: int
+    :ivar elapsed_ms: The elapsed time in milliseconds for the retrieval activity.
+    :vartype elapsed_ms: int
+    :ivar error: The error detail explaining why the operation failed. This property is only
+     included when the activity does not succeed.
+    :vartype error: ~azure.search.documents.knowledgebases.models.KnowledgeBaseErrorDetail
+    :ivar warning: A warning message surfacing potential configuration issues observed during the
+     activity, such as documents dropped due to score thresholding, token limit truncation, or
+     timeout conditions.
+    :vartype warning: str
+    :ivar knowledge_source_name: The knowledge source for the retrieval activity.
+    :vartype knowledge_source_name: str
+    :ivar query_time: The query time for this retrieval activity.
+    :vartype query_time: ~datetime.datetime
+    :ivar count: The count of documents retrieved that were sufficiently relevant to pass the
+     reranker threshold.
+    :vartype count: int
+    :ivar image_serving: Statistics about image serving for this retrieval activity.
+    :vartype image_serving: ~azure.search.documents.knowledgebases.models.ImageServingStatistics
+    :ivar type: The discriminator value. Required. WorkIQ retrieval activity.
+    :vartype type: str or ~azure.search.documents.knowledgebases.models.WORK_IQ
+    :ivar work_iq_arguments: The WorkIQ arguments for the retrieval activity.
+    :vartype work_iq_arguments:
+     ~azure.search.documents.knowledgebases.models.KnowledgeBaseWorkIQActivityArguments
+    """
+
+    knowledge_source_name: Optional[str] = rest_field(
+        name="knowledgeSourceName", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The knowledge source for the retrieval activity."""
+    query_time: Optional[datetime.datetime] = rest_field(
+        name="queryTime", visibility=["read", "create", "update", "delete", "query"], format="rfc3339"
+    )
+    """The query time for this retrieval activity."""
+    count: Optional[int] = rest_field(visibility=["read", "create", "update", "delete", "query"])
+    """The count of documents retrieved that were sufficiently relevant to pass the reranker
+     threshold."""
+    image_serving: Optional["_models.ImageServingStatistics"] = rest_field(
+        name="imageServing", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """Statistics about image serving for this retrieval activity."""
+    type: Literal[KnowledgeBaseActivityRecordType.WORK_IQ] = rest_discriminator(name="type", visibility=["read", "create", "update", "delete", "query"])  # type: ignore
+    """The discriminator value. Required. WorkIQ retrieval activity."""
+    work_iq_arguments: Optional["_models.KnowledgeBaseWorkIQActivityArguments"] = rest_field(
+        name="workIQArguments", visibility=["read", "create", "update", "delete", "query"]
+    )
+    """The WorkIQ arguments for the retrieval activity."""
+
+    @overload
+    def __init__(
+        self,
+        *,
+        id: int,  # pylint: disable=redefined-builtin
+        elapsed_ms: Optional[int] = None,
+        error: Optional["_models.KnowledgeBaseErrorDetail"] = None,
+        warning: Optional[str] = None,
+        knowledge_source_name: Optional[str] = None,
+        query_time: Optional[datetime.datetime] = None,
+        count: Optional[int] = None,
+        image_serving: Optional["_models.ImageServingStatistics"] = None,
+        work_iq_arguments: Optional["_models.KnowledgeBaseWorkIQActivityArguments"] = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(self, mapping: Mapping[str, Any]) -> None:
+        """
+        :param mapping: raw JSON to initialize the model.
+        :type mapping: Mapping[str, Any]
+        """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.type = KnowledgeBaseActivityRecordType.WORK_IQ  # type: ignore
 
 
 class KnowledgeBaseWorkIQReference(KnowledgeBaseReference, discriminator="workIQ"):

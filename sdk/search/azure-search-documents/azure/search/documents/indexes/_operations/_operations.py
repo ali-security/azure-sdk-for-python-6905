@@ -885,7 +885,7 @@ def build_search_index_get_knowledge_source_status_request(  # pylint: disable=n
 
 
 def build_search_index_upload_knowledge_source_file_request(  # pylint: disable=name-too-long
-    name: str, **kwargs: Any
+    name: str, *, content_disposition: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
     _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
@@ -907,6 +907,7 @@ def build_search_index_upload_knowledge_source_file_request(  # pylint: disable=
 
     # Construct headers
     _headers["content-type"] = _SERIALIZER.header("content_type", content_type, "str")
+    _headers["Content-Disposition"] = _SERIALIZER.header("content_disposition", content_disposition, "str")
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
 
     return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
@@ -4417,16 +4418,32 @@ class _SearchIndexClientOperationsMixin(  # pylint: disable=too-many-public-meth
     @distributed_trace
     @api_version_validation(
         method_added_on="2026-05-01-preview",
-        params_added_on={"2026-05-01-preview": ["api_version", "content_type", "client_request_id", "name", "accept"]},
+        params_added_on={
+            "2026-05-01-preview": [
+                "api_version",
+                "content_type",
+                "content_disposition",
+                "client_request_id",
+                "name",
+                "accept",
+            ]
+        },
         api_versions_list=["2026-05-01-preview"],
     )
-    def _upload_knowledge_source_file(self, name: str, file: bytes, **kwargs: Any) -> _models1.KnowledgeSourceFile:
+    def _upload_knowledge_source_file(
+        self, name: str, file: bytes, *, content_disposition: str, **kwargs: Any
+    ) -> _models1.KnowledgeSourceFile:
         """Uploads a file to a File knowledge source for processing and indexing.
 
         :param name: The name of the knowledge source. Required.
         :type name: str
         :param file: The file content to upload. Required.
         :type file: bytes
+        :keyword content_disposition: The Content-Disposition header specifying the filename of the
+         uploaded file.
+         Must follow the format: ``attachment; filename="<filename>"``.
+         For example: ``attachment; filename="installation-guide.pdf"``. Required.
+        :paramtype content_disposition: str
         :return: KnowledgeSourceFile. The KnowledgeSourceFile is compatible with MutableMapping
         :rtype: ~azure.search.documents.indexes.models.KnowledgeSourceFile
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -4449,6 +4466,7 @@ class _SearchIndexClientOperationsMixin(  # pylint: disable=too-many-public-meth
 
         _request = build_search_index_upload_knowledge_source_file_request(
             name=name,
+            content_disposition=content_disposition,
             content_type=content_type,
             api_version=self._config.api_version,
             content=_content,

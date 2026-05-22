@@ -375,6 +375,9 @@ class _SearchIndexClientOperationsMixin(_SearchIndexClientOperationsMixinGenerat
         self,
         name: str,
         file: Union[bytes, IO[bytes]],
+        *,
+        filename: Optional[str] = None,
+        content_disposition: Optional[str] = None,
         **kwargs: Any,
     ) -> _models.KnowledgeSourceFile:
         """Uploads a file to a File knowledge source for processing and indexing.
@@ -383,13 +386,31 @@ class _SearchIndexClientOperationsMixin(_SearchIndexClientOperationsMixinGenerat
         :type name: str
         :param file: The file content to upload. Required.
         :type file: bytes or IO[bytes]
+        :keyword filename: The name to associate with the uploaded file. When provided, the
+         ``Content-Disposition`` header is built as ``attachment; filename="<filename>"``. Either
+         ``filename`` or ``content_disposition`` must be provided.
+        :paramtype filename: str
+        :keyword content_disposition: The raw ``Content-Disposition`` header value. Use this to
+         override the default ``attachment; filename="<filename>"`` format produced from
+         ``filename``. Either ``filename`` or ``content_disposition`` must be provided.
+        :paramtype content_disposition: str
         :return: KnowledgeSourceFile
         :rtype: ~azure.search.documents.indexes.models.KnowledgeSourceFile
+        :raises ValueError: If neither ``filename`` nor ``content_disposition`` is provided.
         :raises ~azure.core.exceptions.HttpResponseError:
         """
+        if content_disposition is None:
+            if filename is None:
+                raise ValueError("Either 'filename' or 'content_disposition' must be provided.")
+            content_disposition = f'attachment; filename="{filename}"'
         return cast(
             _models.KnowledgeSourceFile,
-            self._upload_knowledge_source_file(name=name, file=cast(bytes, file), **kwargs),
+            self._upload_knowledge_source_file(
+                name=name,
+                file=cast(bytes, file),
+                content_disposition=content_disposition,
+                **kwargs,
+            ),
         )
 
     @distributed_trace
