@@ -23,6 +23,8 @@
 # THE SOFTWARE.
 #
 # --------------------------------------------------------------------------
+import base64
+import pickle
 import time
 
 try:
@@ -97,6 +99,63 @@ def test_no_polling(client):
     assert no_polling_revived.status() == "succeeded"
     assert no_polling_revived.finished()
     assert no_polling_revived.resource() == "Treated: " + initial_response
+
+
+# --- CVE-2026-21226 regression: NoPolling.from_continuation_token must not unpickle. ---
+
+_NO_POLLING_RCE_TRIPPED = []
+
+
+def _no_polling_rce_tripwire():
+    _NO_POLLING_RCE_TRIPPED.append(True)
+    return "pwned"
+
+
+class _NoPollingRCEPayload:
+    def __reduce__(self):
+        return (_no_polling_rce_tripwire, ())
+
+
+def test_no_polling_rejects_pickle_continuation_token_cve_2026_21226(client):
+    """A continuation token whose pickle payload would load an arbitrary callable
+    must be rejected without executing it. The token format remains pickle for
+    backward compatibility, but the decode path uses _SafeUnpickler whose
+    find_class only resolves the narrow allowlist in polling/_utils.py.
+    """
+    del _NO_POLLING_RCE_TRIPPED[:]
+    malicious_token = base64.b64encode(pickle.dumps(_NoPollingRCEPayload())).decode("ascii")
+
+    with pytest.raises(ValueError):
+        NoPolling.from_continuation_token(
+            malicious_token, deserialization_callback=lambda r: r, client=client
+        )
+
+    assert _NO_POLLING_RCE_TRIPPED == [], "disallowed callable was executed — RCE is still reachable"
+
+
+def test_no_polling_continuation_token_roundtrip_preserves_state(client):
+    """Compatibility: NoPolling.get/from_continuation_token still round-trips
+    so that a poller revived from a token reaches the same terminal state and
+    deserialized resource as the original.
+    """
+    no_polling = NoPolling()
+    initial_response = "initial response"
+
+    def deserialization_cb(response):
+        return "Treated: " + response
+
+    no_polling.initialize(client, initial_response, deserialization_cb)
+    token = no_polling.get_continuation_token()
+
+    revived_args = NoPolling.from_continuation_token(
+        token, deserialization_callback=deserialization_cb, client=client
+    )
+    revived = NoPolling()
+    revived.initialize(*revived_args)
+
+    assert revived.status() == "succeeded"
+    assert revived.finished()
+    assert revived.resource() == "Treated: " + initial_response
 
 
 def test_polling_with_path_format_arguments(client):

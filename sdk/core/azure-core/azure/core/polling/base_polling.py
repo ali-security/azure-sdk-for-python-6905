@@ -24,7 +24,6 @@
 #
 # --------------------------------------------------------------------------
 import abc
-import base64
 import json
 from enum import Enum
 from typing import (
@@ -54,6 +53,7 @@ from ..pipeline.transport import (
     AsyncHttpResponse as LegacyAsyncHttpResponse,
 )
 from ..rest import HttpRequest, HttpResponse, AsyncHttpResponse
+from ._utils import _encode_continuation_token, _decode_continuation_token
 
 
 HttpRequestType = Union[LegacyHttpRequest, HttpRequest]
@@ -616,9 +616,7 @@ class _SansIOLROBasePolling(
             raise HttpResponseError(response=initial_response.http_response, error=err) from err
 
     def get_continuation_token(self) -> str:
-        import pickle
-
-        return base64.b64encode(pickle.dumps(self._initial_response)).decode("ascii")
+        return _encode_continuation_token(self._initial_response)
 
     @classmethod
     def from_continuation_token(
@@ -634,9 +632,9 @@ class _SansIOLROBasePolling(
         except KeyError:
             raise ValueError("Need kwarg 'deserialization_callback' to be recreated from continuation_token") from None
 
-        import pickle
-
-        initial_response = pickle.loads(base64.b64decode(continuation_token))  # nosec
+        # CVE-2026-21226 mitigation: _decode_continuation_token routes through _SafeUnpickler,
+        # which restricts class loading to a narrow allowlist (see polling/_utils.py).
+        initial_response = _decode_continuation_token(continuation_token)
         # Restore the transport in the context
         initial_response.context.transport = client._pipeline._transport  # pylint: disable=protected-access
         return client, initial_response, deserialization_callback

@@ -177,6 +177,73 @@ def test_base_polling_continuation_token(client, polling_response, http_response
     new_polling.initialize(*polling_args)
 
 
+# --- CVE-2026-21226 regression: continuation tokens must not be unpickled. ---
+
+# Tripwire that proves we never reach pickle.loads. If we did, __reduce__ would
+# fire and execute _rce_tripwire(), flipping the module-level flag.
+_RCE_TRIPPED = []
+
+
+def _rce_tripwire():
+    _RCE_TRIPPED.append(True)
+    return "pwned"
+
+
+class _RCEPayload:
+    def __reduce__(self):
+        return (_rce_tripwire, ())
+
+
+@pytest.mark.parametrize("http_response", REQUESTS_TRANSPORT_RESPONSES)
+def test_base_polling_rejects_pickle_continuation_token_cve_2026_21226(
+    client, polling_response, http_response
+):
+    """A continuation token whose pickle payload would load an arbitrary callable
+    (e.g. os.system) must be rejected without executing it. The token format is
+    still pickle for backward compatibility, but the decode path runs through
+    _SafeUnpickler, which only resolves classes in a narrow allowlist.
+    """
+    del _RCE_TRIPPED[:]
+    malicious_token = base64.b64encode(pickle.dumps(_RCEPayload())).decode("ascii")
+
+    with pytest.raises(ValueError):
+        LROBasePolling.from_continuation_token(
+            malicious_token,
+            deserialization_callback="deserialization_callback",
+            client=client,
+        )
+
+    assert _RCE_TRIPPED == [], "disallowed callable was executed — RCE is still reachable"
+
+
+@pytest.mark.parametrize("http_response", REQUESTS_TRANSPORT_RESPONSES)
+def test_base_polling_continuation_token_roundtrip_preserves_state(
+    client, polling_response, http_response
+):
+    """Compatibility: the public get/from_continuation_token contract still
+    round-trips. Status code and headers survive the trip — i.e. callers that
+    persisted tokens with this azure-core version continue to resume normally.
+    """
+    polling = polling_response(
+        http_response,
+        {"operation-location": "https://example.org/op/42", "content-type": "application/json"},
+    )
+    polling._initial_response.http_response.status_code = 202
+
+    token = polling.get_continuation_token()
+    assert isinstance(token, str)
+
+    rebuilt_client, rebuilt_response, rebuilt_cb = LROBasePolling.from_continuation_token(
+        token,
+        deserialization_callback="deserialization_callback",
+        client=client,
+    )
+    assert rebuilt_client is client
+    assert rebuilt_cb == "deserialization_callback"
+    assert rebuilt_response.http_response.status_code == 202
+    assert rebuilt_response.http_response.headers["operation-location"] == "https://example.org/op/42"
+
+
 @pytest.mark.parametrize("http_response", REQUESTS_TRANSPORT_RESPONSES)
 def test_delay_extraction_int(polling_response, http_response):
     polling = polling_response(http_response, {"Retry-After": "10"})
