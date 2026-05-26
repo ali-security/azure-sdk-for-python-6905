@@ -105,6 +105,41 @@ def testserver():
     terminate_testserver(server)
 
 
+# The remote coretests Azure Storage account that test_streaming.py / test_rest_stream_responses.py
+# fetch from is no longer publicly reachable. Rewrite those URLs to the local coretestserver,
+# which serves byte-identical canned content under /tests/test.txt, /tests/test.tar.gz, and
+# /tests/test_with_header.tar.gz (see coretestserver.test_routes.streams.blob_tests_api).
+_LIVE_BLOB_HOST = "coretests.blob.core.windows.net"
+
+
+def _rewrite_url_to_local(url, port):
+    if isinstance(url, str) and _LIVE_BLOB_HOST in url:
+        return url.replace("https://{}".format(_LIVE_BLOB_HOST), "http://localhost:{}".format(port))
+    return url
+
+
+@pytest.fixture(autouse=True)
+def _rewrite_coretests_blob_urls(monkeypatch):
+    port = os.environ.get("FLASK_PORT")
+    if not port:
+        return  # testserver fixture didn't run (e.g. collection-only); nothing to rewrite
+
+    from azure.core.pipeline.transport import HttpRequest as LegacyHttpRequest
+    from azure.core.rest import HttpRequest as RestHttpRequest
+
+    legacy_init = LegacyHttpRequest.__init__
+    rest_init = RestHttpRequest.__init__
+
+    def patched_legacy_init(self, method, url, *args, **kwargs):
+        legacy_init(self, method, _rewrite_url_to_local(url, port), *args, **kwargs)
+
+    def patched_rest_init(self, method, url, *args, **kwargs):
+        rest_init(self, method, _rewrite_url_to_local(url, port), *args, **kwargs)
+
+    monkeypatch.setattr(LegacyHttpRequest, "__init__", patched_legacy_init)
+    monkeypatch.setattr(RestHttpRequest, "__init__", patched_rest_init)
+
+
 @pytest.fixture
 def client(port):
     return TestRestClient(port)

@@ -12,6 +12,7 @@ from .test_routes import (
     errors_api,
     polling_api,
     streams_api,
+    blob_tests_api,
     urlencoded_api,
     multipart_api,
     xml_api,
@@ -24,6 +25,7 @@ app.register_blueprint(encoding_api, url_prefix="/encoding")
 app.register_blueprint(errors_api, url_prefix="/errors")
 app.register_blueprint(polling_api, url_prefix="/polling")
 app.register_blueprint(streams_api, url_prefix="/streams")
+app.register_blueprint(blob_tests_api, url_prefix="/tests")
 app.register_blueprint(urlencoded_api, url_prefix="/urlencoded")
 app.register_blueprint(multipart_api, url_prefix="/multipart")
 app.register_blueprint(xml_api, url_prefix="/xml")

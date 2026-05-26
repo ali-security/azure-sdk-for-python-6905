@@ -14,6 +14,12 @@ from flask import (
 
 streams_api = Blueprint("streams_api", __name__)
 
+# Mock for the live https://coretests.blob.core.windows.net/tests/* fixtures
+# (the source blob is no longer publicly reachable). Mounted at /tests by the
+# Flask app so the URL-rewrite fixture in conftest.py can route the original
+# coretests.blob.core.windows.net URLs here.
+blob_tests_api = Blueprint("blob_tests_api", __name__)
+
 
 class StreamingBody:
     def __iter__(self):
@@ -91,3 +97,38 @@ def compressed_stream():
 @streams_api.route("/decompress_header", methods=["GET"])
 def decompress_header():
     return Response(compressed_stream(), status=200, headers={"Content-Encoding": "gzip"})
+
+
+# --- Mock of https://coretests.blob.core.windows.net/tests/* ---
+
+# Hardcoded gzip-of-b"test" (mtime=0, OS=TOPS-20 / 0x0a). Matches the literal
+# byte sequence asserted by test_rest_stream_responses.test_decompress_compressed_no_header,
+# which was originally captured against a specific server-side encoding.
+# Python's default gzip.GzipFile picks current mtime + Unix OS byte, so a
+# locally-generated payload would not match.
+_GZIPPED_TEST_BYTES = b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\n+I-.\x01\x00\x0c~\x7f\xd8\x04\x00\x00\x00"
+
+
+@blob_tests_api.route("/test.txt", methods=["GET"])
+def blob_test_txt():
+    return Response(b"test", status=200, mimetype="text/plain")
+
+
+@blob_tests_api.route("/test.tar.gz", methods=["GET"])
+def blob_test_tar_gz():
+    # Gzipped bytes WITHOUT Content-Encoding header — client receives raw gzipped payload.
+    return Response(_GZIPPED_TEST_BYTES, status=200, mimetype="application/octet-stream")
+
+
+@blob_tests_api.route("/test_with_header.tar.gz", methods=["GET"])
+def blob_test_with_header_tar_gz():
+    # Gzipped bytes WITH Content-Encoding: gzip — client transparently decompresses.
+    return Response(_GZIPPED_TEST_BYTES, status=200, headers={"Content-Encoding": "gzip"})
+
+
+@blob_tests_api.route("/test_with_header.txt", methods=["GET"])
+def blob_test_with_header_txt():
+    # Malformed: PLAIN body but advertised as Content-Encoding: gzip. Tests
+    # verify the client raises DecodeError when asked to decompress, and
+    # returns the raw plain bytes when decompress=False.
+    return Response(b"test", status=200, headers={"Content-Encoding": "gzip"})

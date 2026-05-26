@@ -1,0 +1,187 @@
+name: sdk-core-ci
+
+on:
+  push:
+    branches:
+      - main
+      - 'hotfix/*'
+      - 'release/*'
+      - 'restapi*'
+  pull_request:
+    branches:
+      - main
+      - 'feature/*'
+      - 'hotfix/*'
+      - 'release/*'
+      - 'restapi*'
+defaults:
+  run:
+    shell: bash
+
+# Seal time-machine PyPI mirror, applied globally. Every pip invocation
+# resolves dependencies as they existed at the azure-core 1.29.0 release
+# date, so the entire toolchain (pip, setuptools, wheel) and all transitive
+# deps are era-appropriate. Notably this yields setuptools 68.x (< 70, so
+# setup.py bdist_wheel routes through the external wheel package and the
+# WHEEL metadata reads `Generator: bdist_wheel (0.41.1)`) and wheel 0.41.1.
+# (py3.12 is excluded from the matrix because the era's pip/aiohttp predate
+# its support.)
+env:
+  PIP_INDEX_URL: "https://:2023-08-08T20:12:16.542254Z@time-machines-pypi.sealsecurity.io/"
+
+jobs:
+  test:
+    name: test (${{ matrix.package }} / py${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # py3.12 dropped: the Aug-2023 time-machine pins aiohttp to a version
+        # whose C extension references PyLongObject.ob_digit, which CPython 3.12
+        # restructured. The era predates py3.12's support cycle.
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+        package:
+          - azure-core
+          - azure-mgmt-core
+          - azure-core-tracing-opencensus
+          - azure-core-tracing-opentelemetry
+          - azure-common
+          - azure-core-experimental
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip tooling
+        # --force-reinstall (not --upgrade): actions/setup-python ships a newer
+        # pip/setuptools than the Aug-2023 time-machine serves, and --upgrade
+        # never downgrades — so the era-appropriate versions would be ignored.
+        # Force-reinstalling pulls pip/setuptools from the time-machine; wheel
+        # is locked to 0.41.1.
+        run: python -m pip install --force-reinstall pip setuptools 'wheel==0.41.1'
+
+      - name: Install CI test tools
+        run: |
+          python -m pip install -r eng/test_tools.txt
+          # eng/ci_tools.txt pins pip==20.3.3, which uses the legacy
+          # easy-install.pth (causing ordering issues between sibling
+          # azure.core.* editable installs) and predates --config-settings
+          # support. Strip the pip/setuptools/wheel pins so the era-appropriate
+          # versions from the "Upgrade pip tooling" step survive.
+          grep -vE '^(pip|setuptools|wheel)==' eng/ci_tools.txt > /tmp/ci_tools_no_pip_pin.txt
+          python -m pip install -r /tmp/ci_tools_no_pip_pin.txt
+
+      - name: Install package and dev requirements
+        working-directory: sdk/core/${{ matrix.package }}
+        run: |
+          # Sibling packages share the azure.core.* namespace. Neither package
+          # declares a PEP 517 build backend, so pip falls back to legacy
+          # setup.py-develop editable installs that all share one easy-install.pth
+          # ordered by install sequence — whichever editable install came first
+          # wins namespace resolution. Install azure-core editable BEFORE the
+          # sibling so its source dir lands earliest and its azure/core/tracing/
+          # __init__.py (the one that re-exports AbstractSpan) wins.
+          if [ "${{ matrix.package }}" != "azure-core" ] && [ -d ../azure-core ]; then
+            python -m pip install -e ../azure-core --no-deps --force-reinstall --config-settings editable_mode=compat
+          fi
+          if [ -f dev_requirements.txt ]; then
+            # Strip the `../azure-core` line — dev_requirements installs it as
+            # a wheel (no -e), which would uninstall our editable azure-core
+            # and put a non-editable copy in site-packages where it loses to
+            # the sibling's editable source dir during namespace resolution.
+            grep -vE '^\.\./azure-core\s*$' dev_requirements.txt > /tmp/dev_requirements_no_azure_core.txt
+            python -m pip install -r /tmp/dev_requirements_no_azure_core.txt
+          fi
+          # Sibling packages ship namespace-marker __init__.py files at every
+          # level of the azure.core.* tree (azure/, azure/core/,
+          # azure/core/tracing/, …) that only call pkgutil.extend_path and
+          # don't re-export the symbols azure-core's real __init__.py files
+          # do. Pip's PEP 660 MetaPathFinder for whichever sibling loads first
+          # wins import resolution, shadows azure-core, and breaks every
+          # `from azure.core[.tracing] import …` line. Overlay azure-core's
+          # azure/ tree onto the sibling's BEFORE its editable install so
+          # whichever __init__.py wins, it has the right exports. Sibling's
+          # exclusive subdirs (e.g. azure/core/tracing/ext/opencensus_span/)
+          # are kept because rsync only adds/overwrites, never deletes.
+          if [ "${{ matrix.package }}" != "azure-core" ] && [ -d ../azure-core/azure ]; then
+            rsync -a ../azure-core/azure/ ./azure/
+          fi
+          python -m pip install -e . --config-settings editable_mode=compat
+
+      - name: Run pytest
+        working-directory: sdk/core/${{ matrix.package }}
+        env:
+          # Prepend local azure-core to PYTHONPATH so its `azure/core/tracing/
+          # __init__.py` (the one exporting AbstractSpan) is found before the
+          # sibling's empty namespace marker. PYTHONPATH entries land at the
+          # front of sys.path, ahead of every site-packages .pth file regardless
+          # of editable mode.
+          PYTHONPATH: ${{ github.workspace }}/sdk/core/azure-core
+        run: |
+          if [ -d tests ]; then
+            python -m pytest tests --junitxml=test-results.xml
+          else
+            echo "No tests directory for ${{ matrix.package }}, skipping."
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.package }}-py${{ matrix.python-version }}-${{ matrix.os }}
+          path: sdk/core/${{ matrix.package }}/test-results.xml
+          if-no-files-found: ignore
+
+  build:
+    name: build ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - azure-core
+          - azure-mgmt-core
+          - azure-core-tracing-opencensus
+          - azure-core-tracing-opentelemetry
+          - azure-common
+          - azure-core-experimental
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tooling
+        # --force-reinstall (not --upgrade): actions/setup-python ships a newer
+        # setuptools (79.x) and --upgrade never downgrades, so the time-machine's
+        # era-appropriate setuptools would be ignored. setuptools 79.x vendors
+        # its own bdist_wheel and stamps the WHEEL metadata
+        # `Generator: setuptools (79.x)`. Force-reinstalling pip + setuptools
+        # pulls the Aug-2023 versions from the time-machine (setuptools 68.x,
+        # which delegates to the external wheel package), and wheel is locked
+        # to 0.41.1 — yielding `Generator: bdist_wheel (0.41.1)`.
+        run: python -m pip install --force-reinstall pip setuptools 'wheel==0.41.1'
+
+      - name: Build sdist and wheel
+        working-directory: sdk/core/${{ matrix.package }}
+        # Match the public PyPI artifact format for these packages: sdist as
+        # .zip (not the default .tar.gz), wheel via setup.py bdist_wheel so
+        # the WHEEL metadata reads `Generator: bdist_wheel (0.41.1)`.
+        run: |
+          python setup.py sdist --formats=zip --dist-dir dist
+          python setup.py bdist_wheel --dist-dir dist
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}-dist
+          path: sdk/core/${{ matrix.package }}/dist/*
+          if-no-files-found: error
+          retention-days: 30
